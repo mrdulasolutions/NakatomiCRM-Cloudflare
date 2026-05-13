@@ -7,11 +7,13 @@ import { HTTPError } from './lib/errors'
 import type { AppVars } from './middleware/auth'
 import { activitiesRouter } from './routes/activities'
 import { authRouter } from './routes/auth'
+import { calendarRouter } from './routes/calendar'
 import { companiesRouter } from './routes/companies'
 import { contactsRouter } from './routes/contacts'
 import { customFieldsRouter } from './routes/custom-fields'
 import { dashboardRouter } from './routes/dashboard'
 import { dealsRouter } from './routes/deals'
+import { emailRouter } from './routes/email'
 import { exportsRouter } from './routes/exports'
 import { filesRouter } from './routes/files'
 import { ingestRouter } from './routes/ingest'
@@ -63,6 +65,8 @@ export function makeApp(): Hono<AppEnv> {
   app.route('/v1/exports', exportsRouter)
   app.route('/v1/webhooks', webhooksRouter)
   app.route('/v1/memory', memoryRouter)
+  app.route('/v1/email', emailRouter)
+  app.route('/v1/calendar', calendarRouter)
 
   app.get('/', (c) =>
     c.json({

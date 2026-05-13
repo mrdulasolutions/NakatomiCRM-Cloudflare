@@ -21,6 +21,15 @@ export interface Env {
   // Secrets (set via `wrangler secret put`)
   JWT_SECRET: string
   ADMIN_BOOTSTRAP_TOKEN?: string
+  RESEND_API_KEY?: string
+  // Memory connectors — present → connector auto-enables.
+  DOCDEPLOY_API_KEY?: string
+  DOCDEPLOY_WEBHOOK_SECRET?: string
+  DOCDEPLOY_BASE_URL?: string
+  SUPERMEMORY_API_KEY?: string
+  SUPERMEMORY_BASE_URL?: string
+  GBRAIN_API_KEY?: string
+  GBRAIN_BASE_URL?: string
 }
 
 export interface IngestJob {
