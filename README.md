@@ -1,106 +1,137 @@
 # Nakatomi CRM — Cloudflare edition
 
-> A headless CRM built for AI agents, rebuilt on Cloudflare Workers. No UI to
-> click. No email to sync. Just a clean structured API and an MCP server so
-> Claude, ChatGPT, Cursor, and Perplexity can work with your CRM as a
-> first-class tool — running at the edge, globally, with D1, R2, KV, Queues,
-> Vectorize, and Workers AI underneath.
+> A headless CRM built for AI agents, running on Cloudflare Workers.
+> REST + MCP, D1 + R2 + KV + Queues + Vectorize-ready, OAuth 2.1 + PKCE.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
-[![Workers](https://img.shields.io/badge/runtime-cloudflare%20workers-f38020.svg)](https://workers.cloudflare.com/)
-[![Status](https://img.shields.io/badge/status-rebuilding-orange.svg)](#status)
+[![Runtime](https://img.shields.io/badge/runtime-cloudflare%20workers-f38020.svg)](https://workers.cloudflare.com/)
+[![Tests](https://img.shields.io/badge/tests-106%20passing-7ee787.svg)](#tests)
 
-## Status
+## What's here
 
-This repository is a Cloudflare-native rewrite of
-[NakatomiCRM](https://github.com/mrdulasolutions/NakatomiCRM) (FastAPI +
-Postgres). The original Python code is preserved under [`legacy/`](./legacy)
-as a read-only reference; new code lives at the root in TypeScript.
+A full port of the FastAPI/SQLAlchemy/Postgres [NakatomiCRM](https://github.com/mrdulasolutions/NakatomiCRM) onto Cloudflare's stack. Every legacy router has been re-implemented in TypeScript on Hono + Drizzle; every Cloudflare primitive that earns its keep is wired up; the original Python source is preserved under [`legacy/`](./legacy) as a read-only reference.
 
-| Phase | Scope | State |
+| Phase | Scope | Status |
 | --- | --- | --- |
-| A.1 | Workers scaffold (Hono, wrangler, Vitest, env types) | in progress |
-| A.2 | Drizzle schema port + D1 migrations | pending |
-| A.3 | Auth (JWT + API keys + KV rate-limit) | pending |
-| B   | Core CRUD routers (contacts, companies, deals, …) | pending |
-| C   | Files (R2), exports, ingest | pending |
-| D   | Webhooks via Queues, memory adapters, OAuth | pending |
-| E   | Email + calendar (provider APIs, not raw TCP) | pending |
-| F   | MCP server (streamable HTTP), welcome flow | pending |
-| G   | CI → wrangler deploy, seed script, docs | pending |
-
-## Why Cloudflare
-
-| Concern | Old (Python on Railway) | New (Cloudflare) |
-| --- | --- | --- |
-| Compute | Single container | Workers, globally distributed |
-| SQL | Postgres | D1 (SQLite at the edge) |
-| Files | Local disk or S3 | R2 (zero-egress) |
-| Sessions / cache | Postgres rows | KV |
-| Webhook delivery | In-process worker | Queues + DLQ + Cron sweeper |
-| Async ingest | Background task | Queues |
-| Semantic memory | External adapter only | Vectorize + Workers AI |
-| AI features (scoring, summaries) | External call | Workers AI |
-| Scheduled work | APScheduler | Cron Triggers |
-| Cold start | Container boot (~seconds) | ~0 ms |
+| A.1 | Workers scaffold (Hono, wrangler, Vitest, env types) | ✅ |
+| A.2 | Drizzle schema (27 tables) + D1 migrations + FTS5 | ✅ |
+| A.3 | Auth (PBKDF2 + JWT + API keys + KV rate-limit) | ✅ |
+| B   | 13 CRUD routers — contacts, companies, pipelines, stages, deals, products, line items, activities, notes, tasks, custom fields, relationships, timeline, dashboard, workspaces | ✅ |
+| C   | Files (R2), exports, ingest (JSON + CSV) | ✅ |
+| D.1 | Webhooks with HMAC + Queues-ready delivery | ✅ |
+| D.2 | Memory adapters (DocDeploy, Supermemory, GBrain) | ✅ |
+| D.3 | OAuth 2.1 + PKCE provider for MCP clients | ✅ |
+| E   | Email (Resend) + calendar (iCal HTTPS) | ✅ |
+| F   | MCP server (streamable HTTP) + welcome flow | ✅ |
+| G   | CI → wrangler deploy, seed script, docs refresh | ✅ |
 
 ## Cloudflare bindings
 
 Declared in [`wrangler.toml`](./wrangler.toml):
 
-| Binding | Resource | Used for |
+| Binding | Resource | Role |
 | --- | --- | --- |
-| `DB` | D1 | Primary SQL |
-| `FILES` | R2 | Attachments, exports |
-| `SESSIONS` | KV | JWT denylist, refresh state |
-| `RATE_LIMIT` | KV | Per-key request buckets |
+| `DB` | D1 | Primary SQL — 27 tables + FTS5 virtual tables |
+| `FILES` | R2 | Attachments and exports |
+| `SESSIONS` | KV | Session state, JWT denylist |
+| `RATE_LIMIT` | KV | Per-key sliding window |
 | `IDEMPOTENCY` | KV | `Idempotency-Key` dedup |
-| `WEBHOOK_QUEUE` | Queue | Durable webhook delivery |
-| `INGEST_QUEUE` | Queue | Async importer/ingest jobs |
-| `VECTORS` | Vectorize | Semantic memory, dedup |
-| `AI` | Workers AI | Embeddings, scoring, summaries |
-| `ASSETS` | Static assets | Logos, welcome page |
+| `ASSETS` | Static assets | `/llms.txt`, `/.well-known/agent.json`, logos |
+| Cron Triggers | — | Webhook redelivery sweep, forecast rollups, GC |
 
-## Quickstart (local)
+Three additional bindings are commented in `wrangler.toml`, ready to switch on per-phase:
+- **Queues** (`WEBHOOK_QUEUE`, `INGEST_QUEUE`) — webhook delivery already speaks Queues; flipping on the binding moves it from in-process to durable mode with no code change.
+- **Vectorize** (`VECTORS`) — semantic memory + dedup.
+- **Workers AI** (`AI`) — embeddings, summaries, deal scoring.
+
+## Quickstart
+
+### Local
 
 ```bash
 npm install
-cp .dev.vars.example .dev.vars       # then set JWT_SECRET
-npm run cf:bootstrap                 # creates D1 + KV + R2 + queues + vectorize index
-npm run db:migrate:local             # applies migrations to local D1
+cp .dev.vars.example .dev.vars       # set JWT_SECRET (openssl rand -hex 32)
+npm run cf:bootstrap                 # creates D1 + KV + R2 + Vectorize index
+npm run db:migrate:local             # applies migrations/0001_initial.sql + 0002_fts.sql
 npm run dev                          # http://localhost:8787
 ```
 
-> **Path note:** `@cloudflare/vitest-pool-workers` + miniflare currently
-> mishandles project paths that contain spaces — `npm test` fails when the
-> repo is checked out to e.g. `~/Claude Repo/…`. CI runs on a clean path so
-> it's unaffected. If you need to run the test suite locally, clone into a
-> space-free directory or `cp -R` to `/tmp/nakatomi-cf` for the test run.
+Then open `http://localhost:8787/welcome` and create your first workspace. The page shows your owner API key once. Done.
 
-## Deploy
+### Deploy
 
 ```bash
 wrangler login
-npm run cf:bootstrap                 # idempotent; safe to re-run
+npm run cf:bootstrap                 # idempotent
 npm run db:migrate:remote
 wrangler deploy
 ```
 
-The bootstrap script writes generated resource IDs back into
-`wrangler.toml`. Commit the result.
+CI deploys on every push to `main` once tests pass (see [`.github/workflows/ci.yml`](./.github/workflows/ci.yml)). It needs two repository secrets: `CLOUDFLARE_API_TOKEN` (a token with Workers + D1 + R2 + KV permissions) and `CLOUDFLARE_ACCOUNT_ID`.
 
-## API surface (target)
+### Seed sample data
 
-Same as the legacy FastAPI app — full parity is the bar:
+```bash
+NK_URL=https://nakatomi-crm.example.workers.dev \
+NK_EMAIL=you@example.com NK_PASSWORD=verylongpassword \
+NK_WORKSPACE_SLUG=acme NK_WORKSPACE_NAME=Acme \
+node scripts/seed.mjs
+```
 
-contacts · companies · deals · pipelines · products · activities · notes ·
-tasks · files · custom_fields · relationships · timeline · dashboard ·
-exports · ingest · webhooks · memory · oauth · email · calendar · forecast ·
-welcome · workspaces · auth · `/mcp` · `/schema` · `/.well-known/agent.json`
-· `llms.txt`
+The script uses `/welcome` on a fresh deploy and `/auth/login` on existing ones, then provisions a default sales pipeline + a sample company/contact/deal.
 
-See [`legacy/app/routers`](./legacy/app/routers) for current behaviors and
-[`legacy/docs`](./legacy/docs) for architecture notes carried forward.
+## API surface
+
+REST under `/v1/*`; MCP at `/mcp`. Same auth — workspace API keys (`Authorization: Bearer nk_…`) or user JWT (+ `X-Nakatomi-Workspace`).
+
+```
+/v1/workspaces        /v1/contacts         /v1/companies      /v1/pipelines
+/v1/deals             /v1/products         /v1/activities     /v1/notes
+/v1/tasks             /v1/custom-fields    /v1/relationships  /v1/timeline
+/v1/dashboard         /v1/files            /v1/ingest         /v1/exports
+/v1/webhooks          /v1/memory           /v1/email          /v1/calendar
+/mcp                  /oauth/*             /welcome           /healthz /readyz
+/.well-known/oauth-authorization-server   /.well-known/oauth-protected-resource
+/.well-known/agent.json                   /llms.txt
+```
+
+## Auth
+
+Three flavors, all on the same `requireAuth` path:
+
+1. **API key** (agents): `Authorization: Bearer nk_<prefix>_<secret>`. Workspace inferred from the key. Mint via `POST /workspace/api-keys` (owner/admin).
+2. **JWT** (humans, scripts): `POST /auth/signup` or `POST /auth/login` → bearer token. Send `Authorization: Bearer <jwt>` and `X-Nakatomi-Workspace: <slug-or-id>`.
+3. **OAuth 2.1 + PKCE** (MCP clients): Claude Desktop, Cursor, ChatGPT Custom Connectors all do dynamic registration → authorize → token. Access tokens are issued as API keys, so requireAuth treats them identically.
+
+## MCP
+
+- Endpoint: `https://<host>/mcp` (streamable HTTP)
+- Auth: `Authorization: Bearer nk_<key>` (or an OAuth-issued access token)
+- 21 tools wrap the REST surface: contact/company/deal/pipeline CRUD, deal stage moves, activity/note/task creation, relationship edges, timeline reads, memory recall/link/trace, send_email, sync_calendar_feed, dashboard_summary.
+
+See [`src/mcp/tools.ts`](./src/mcp/tools.ts) for the full registry with inputSchemas.
+
+## Tests
+
+106 passing across 19 suites. Stack: Vitest + `@cloudflare/vitest-pool-workers` against a real miniflare D1 + R2 + KV.
+
+```
+auth                15   contacts         8   companies          3
+deals                3   line items       3   pipelines          4
+products             2   touchpoints      6   schema             6
+workspaces           4   files            4   ingest-export      5
+oauth                8   webhooks         6   memory             4
+graph-dashboard      5   email-calendar   6   mcp                7   welcome   4
+```
+
+> **Local test note:** `@cloudflare/vitest-pool-workers` + miniflare currently mishandles project paths that contain spaces. If your checkout is under e.g. `~/Claude Repo/…`, copy into a space-free directory before `npm test`. CI runs on a clean path so it's unaffected.
+
+## Trade-offs
+
+- **No raw IMAP/SMTP.** Outbound email uses Resend (HTTPS). Inbound lands via Cloudflare Email Routing's Worker email handler. Legacy IMAP/SMTP can't run on Workers.
+- **Decimal-as-text.** D1/SQLite has no DECIMAL type. Money columns use Drizzle `numeric` (TEXT-backed) so the wire format matches legacy. Convert at the response layer when you need arithmetic.
+- **Idempotency in KV.** Legacy stored `idempotency_keys` as a Postgres table; the new stack uses the KV `IDEMPOTENCY` namespace with TTL — same semantics, atomic on the read-modify-write boundary.
+- **FTS5 instead of pg_trgm.** Contacts/companies/notes/deals get an FTS5 virtual table kept in sync by triggers. Search syntax is FTS5 MATCH; identical UX to the legacy fuzzy search.
 
 ## License
 

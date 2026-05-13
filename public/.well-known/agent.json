@@ -1,130 +1,73 @@
 {
   "schema_version": "1.0",
   "name": "Nakatomi CRM",
-  "description": "A headless, agent-native CRM. Stores contacts, companies, deals, activities, notes, tasks, files, relationships, and timeline events. Supports multi-tenant workspaces, API keys, webhooks, bulk upsert, soft delete, idempotency, and a pluggable memory-connector layer for cross-linking with external memory systems (DocDeploy, Supermemory, and others).",
+  "description": "Headless, agent-native CRM running on Cloudflare Workers. Contacts, companies, deals, products + line items, activities, notes, tasks, files (R2), a typed relationship graph, an append-only timeline + audit log, durable webhooks (Queues), HMAC-signed delivery, OAuth 2.1 + PKCE for MCP clients, and a pluggable memory-connector layer (DocDeploy, Supermemory, GBrain).",
   "version": "0.1.0",
-  "url": "https://example.nakatomi.dev",
+  "url": "https://nakatomi-crm.example.workers.dev",
   "documentation_url": "/llms.txt",
-  "contact": {
-    "name": "Matt Dula",
-    "email": "matt@mrdula.solutions"
-  },
+  "contact": { "name": "Matt Dula", "email": "matt@mrdula.solutions" },
   "authentication": {
     "schemes": ["bearer"],
-    "bearer_formats": ["api_key"],
-    "notes": "Use a workspace API key (prefix 'nk_') from POST /workspace/api-keys. Alternatively, a user JWT from POST /auth/login with an X-Workspace header."
+    "bearer_formats": ["api_key", "jwt", "oauth2_access_token"],
+    "notes": "Workspace API keys (prefix 'nk_') are the recommended path for agents. Also supports user JWT (Authorization: Bearer <jwt> + X-Nakatomi-Workspace) and OAuth 2.1 + PKCE access tokens issued via /oauth/token."
   },
   "transports": [
-    {
-      "type": "http",
-      "base_url": "/",
-      "openapi_url": "/openapi.json"
-    },
-    {
-      "type": "mcp",
-      "base_url": "/mcp",
-      "protocol_version": "2024-11-05",
-      "streamable_http": true
-    }
+    { "type": "http", "base_url": "/v1" },
+    { "type": "mcp", "base_url": "/mcp", "protocol_version": "2024-11-05", "streamable_http": true }
   ],
+  "discovery": {
+    "oauth_authorization_server": "/.well-known/oauth-authorization-server",
+    "oauth_protected_resource": "/.well-known/oauth-protected-resource",
+    "llms_txt": "/llms.txt"
+  },
   "capabilities": [
-    {
-      "name": "contacts",
-      "description": "CRUD + bulk upsert + substring search over people records.",
-      "endpoints": {
-        "list": "GET /contacts",
-        "create": "POST /contacts",
-        "get": "GET /contacts/{id}",
-        "update": "PATCH /contacts/{id}",
-        "delete": "DELETE /contacts/{id}",
-        "bulk_upsert": "POST /contacts/bulk_upsert"
-      }
-    },
-    {
-      "name": "companies",
-      "description": "CRUD + bulk upsert + substring search over organization records.",
-      "endpoints": {
-        "list": "GET /companies",
-        "create": "POST /companies",
-        "bulk_upsert": "POST /companies/bulk_upsert"
-      }
-    },
-    {
-      "name": "deals",
-      "description": "Pipeline deals with status (open/won/lost), stages, amounts, and ownership.",
-      "endpoints": {
-        "list": "GET /deals",
-        "create": "POST /deals",
-        "update": "PATCH /deals/{id}"
-      }
-    },
-    {
-      "name": "activities",
-      "description": "Calls, meetings, email logs, and other timestamped touchpoints attached to any entity."
-    },
-    {
-      "name": "notes",
-      "description": "Markdown notes attached to any entity."
-    },
-    {
-      "name": "tasks",
-      "description": "Assignable tasks with due dates, attached to any entity."
-    },
-    {
-      "name": "files",
-      "description": "File uploads attached to any entity. Storage: local volume or S3-compatible."
-    },
-    {
-      "name": "relationships",
-      "description": "Typed directed edges between any two entities. Supports BFS neighbor queries up to depth 2.",
-      "endpoints": {
-        "list": "GET /relationships",
-        "neighbors": "GET /relationships/neighbors"
-      }
-    },
-    {
-      "name": "timeline",
-      "description": "Append-only event feed per entity and per workspace."
-    },
-    {
-      "name": "webhooks",
-      "description": "HMAC-signed webhook subscriptions. Retry with exponential backoff; delivery log is queryable."
-    },
-    {
-      "name": "memory",
-      "description": "Cross-link CRM entities with external memory systems (DocDeploy, Supermemory, …). Fan-out recall, bidirectional trace.",
-      "endpoints": {
-        "recall": "POST /memory/recall",
-        "link": "POST /memory/link",
-        "inbound_webhook": "POST /memory/webhook/{connector}"
-      }
-    },
-    {
-      "name": "ingest",
-      "description": "Accept CSV, vCard, JSON, or text; normalize and materialize into CRM entities.",
-      "endpoints": {
-        "ingest": "POST /ingest"
-      }
-    }
+    { "name": "contacts", "endpoints": { "list": "GET /v1/contacts", "create": "POST /v1/contacts", "get": "GET /v1/contacts/{id}", "update": "PATCH /v1/contacts/{id}", "delete": "DELETE /v1/contacts/{id}", "restore": "POST /v1/contacts/{id}/restore" } },
+    { "name": "companies", "endpoints": { "list": "GET /v1/companies", "create": "POST /v1/companies" } },
+    { "name": "pipelines", "endpoints": { "list": "GET /v1/pipelines", "create": "POST /v1/pipelines", "add_stage": "POST /v1/pipelines/{id}/stages" } },
+    { "name": "deals", "endpoints": { "list": "GET /v1/deals", "create": "POST /v1/deals", "move": "POST /v1/deals/{id}/move", "line_items": "GET /v1/deals/{id}/line-items" } },
+    { "name": "products", "endpoints": { "list": "GET /v1/products", "create": "POST /v1/products" } },
+    { "name": "activities", "description": "Calls, meetings, email logs, and other timestamped touchpoints." },
+    { "name": "notes", "description": "Markdown notes attached to any entity. FTS5-searchable." },
+    { "name": "tasks", "description": "Assignable tasks with due dates; /tasks?overdue=true for the worklist." },
+    { "name": "files", "description": "Multipart upload to R2; metadata in D1.", "endpoints": { "upload": "POST /v1/files", "download": "GET /v1/files/{id}/download" } },
+    { "name": "custom_fields" },
+    { "name": "relationships", "endpoints": { "list": "GET /v1/relationships", "neighbors": "GET /v1/relationships/neighbors" } },
+    { "name": "timeline", "endpoints": { "read": "GET /v1/timeline" } },
+    { "name": "dashboard", "endpoints": { "summary": "GET /v1/dashboard/summary", "pipeline_breakdown": "GET /v1/dashboard/pipeline/{id}", "recent_activity": "GET /v1/dashboard/recent-activity" } },
+    { "name": "webhooks", "description": "HMAC-SHA256 signed deliveries via Cloudflare Queues with DLQ + retry.", "endpoints": { "subscribe": "POST /v1/webhooks", "deliveries": "GET /v1/webhooks/{id}/deliveries" } },
+    { "name": "memory", "endpoints": { "connectors": "GET /v1/memory/connectors", "recall": "POST /v1/memory/recall", "link": "POST /v1/memory/link", "trace": "GET /v1/memory/trace/{entity_type}/{entity_id}" } },
+    { "name": "email", "endpoints": { "config": "PUT /v1/email/config", "send": "POST /v1/email/send" }, "transport": "Resend (env.RESEND_API_KEY)" },
+    { "name": "calendar", "endpoints": { "add_feed": "POST /v1/calendar/feeds", "sync": "POST /v1/calendar/feeds/{id}/sync" }, "transport": "iCal over HTTPS with ETag" },
+    { "name": "ingest", "endpoints": { "ingest": "POST /v1/ingest" }, "formats": ["json", "csv"], "kinds": ["contact", "company", "deal"] },
+    { "name": "exports", "endpoints": { "workspace": "GET /v1/exports/workspace" } },
+    { "name": "oauth", "endpoints": { "register": "POST /oauth/register", "authorize": "GET/POST /oauth/authorize", "token": "POST /oauth/token", "revoke": "POST /oauth/revoke" } }
   ],
   "event_types": [
-    "contact.created", "contact.updated", "contact.deleted",
+    "contact.created", "contact.updated", "contact.deleted", "contact.restored",
     "company.created", "company.updated", "company.deleted",
-    "deal.created", "deal.updated", "deal.deleted",
-    "deal.stage_changed", "deal.won", "deal.lost",
-    "activity.created", "activity.deleted",
-    "note.created", "note.updated", "note.deleted",
-    "task.created", "task.updated", "task.deleted",
-    "relationship.created", "relationship.deleted",
-    "file.uploaded", "file.deleted",
+    "deal.created", "deal.updated", "deal.moved", "deal.deleted",
+    "deal.line_item.added", "deal.line_item.removed",
+    "product.created", "product.updated", "product.deleted",
+    "pipeline.created",
+    "activity.call", "activity.meeting", "activity.email_log",
+    "note.created", "task.created", "task.done", "task.cancelled",
+    "file.uploaded",
     "memory.linked", "memory.unlinked",
-    "ingest.completed"
+    "email.sent"
   ],
+  "platform": {
+    "runtime": "cloudflare-workers",
+    "database": "cloudflare-d1 (sqlite)",
+    "object_storage": "cloudflare-r2",
+    "kv": ["sessions", "rate_limit", "idempotency"],
+    "queues": ["webhook_delivery", "ingest"],
+    "cron_triggers": ["*/15 * * * *", "0 * * * *", "0 0 * * *"]
+  },
   "safety": {
-    "data_residency": "operator-controlled",
-    "pii_handling": "stored in operator's database; not transmitted to third parties unless memory connectors are explicitly configured",
+    "data_residency": "Cloudflare edge — operator chooses region for D1 + R2",
+    "pii_handling": "stored in operator's D1; no third-party transmission unless memory connectors are explicitly configured",
     "soft_delete": true,
     "audit_log": true,
-    "rate_limits": "not enforced at the API layer in v0.x"
+    "rate_limits": "per-API-key, KV-backed; configurable per key"
   }
 }

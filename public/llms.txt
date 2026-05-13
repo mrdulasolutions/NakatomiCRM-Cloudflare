@@ -1,0 +1,74 @@
+# Nakatomi CRM (Cloudflare edition)
+
+> Headless, agent-native CRM running on Cloudflare Workers + D1 + R2 + KV +
+> Queues. REST API at `/v1/*` and an MCP server at `/mcp`. Multi-tenant
+> (workspaces), soft-delete, append-only timeline, HMAC-signed webhooks,
+> OAuth 2.1 + PKCE, and a pluggable memory-connector layer.
+
+Primary audience: LLM agents (Claude, ChatGPT, Perplexity, Cursor) and the
+humans operating them.
+
+## What an agent can do
+
+- Search / create / update / soft-delete contacts, companies, deals,
+  products, activities, notes, tasks, files
+- Move deals through pipeline stages; build deal totals from line items
+  that snapshot product names + prices (history doesn't drift)
+- Attach notes, tasks, activities, and files to any entity
+- Build and query a typed relationship graph between any two entities
+- Read the append-only timeline (`/v1/timeline`) and audit log for any
+  entity or the whole workspace
+- Subscribe to webhooks for any event type (contact.created,
+  deal.moved, …); deliveries go through Cloudflare Queues with DLQ
+- Send email via Resend (`POST /v1/email/send`)
+- Subscribe to iCal feeds (Google, Microsoft, Fastmail, iCloud) and
+  sync them into meeting activities (`POST /v1/calendar/feeds/{id}/sync`)
+- Ingest records from CSV or JSON (`POST /v1/ingest`)
+- Recall across plugged-in memory systems (DocDeploy, Supermemory,
+  GBrain) and cross-link memories to CRM entities
+
+## Auth
+
+Workspace API keys are the recommended path:
+
+```
+Authorization: Bearer nk_<prefix>_<secret>
+```
+
+The workspace is inferred from the key. Alternatively, a user JWT from
+`POST /auth/login` plus `X-Nakatomi-Workspace: <slug-or-id>`. MCP clients
+typically obtain access tokens via OAuth 2.1 + PKCE (see
+`/.well-known/oauth-authorization-server`).
+
+## MCP
+
+- Endpoint: `https://<your-host>/mcp` (streamable HTTP)
+- Authentication: `Authorization: Bearer nk_<key>`
+- Tools: search/get/create/update_contact, search/create_company,
+  list_pipelines, create_deal, move_deal_stage, log_activity, add_note,
+  create_task, list_tasks, relate, timeline, memory_list_connectors,
+  memory_recall, memory_link, memory_trace, send_email,
+  sync_calendar_feed, dashboard_summary
+
+## Discovery
+
+- This file: `/llms.txt`
+- A2A agent card: `/.well-known/agent.json`
+- OAuth 2.1: `/.well-known/oauth-authorization-server` and
+  `/.well-known/oauth-protected-resource`
+
+## Platform
+
+| Capability | Cloudflare primitive |
+| --- | --- |
+| Compute | Workers |
+| SQL | D1 |
+| Files | R2 |
+| Sessions / rate-limit / idempotency | KV |
+| Durable webhook delivery | Queues + DLQ |
+| Scheduled work | Cron Triggers |
+| Static assets | Assets binding |
+
+## Repo
+
+Source: https://github.com/mrdulasolutions/NakatomiCRM-Cloudflare

@@ -3,7 +3,64 @@
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning: [SemVer](https://semver.org/).
 
-## [Unreleased] — Cloudflare rewrite
+## [Unreleased] — Cloudflare rewrite (complete)
+
+Full port of the FastAPI / SQLAlchemy / Postgres `NakatomiCRM` onto
+Cloudflare Workers + D1 + R2 + KV + Queues + Vectorize-ready. 106
+passing tests across 19 suites. The Python source remains under
+[`legacy/`](./legacy) as a read-only reference.
+
+### Phase summary
+
+- **A** — Scaffold (Hono, wrangler, Vitest); 27-table Drizzle schema
+  with FTS5; PBKDF2 + JWT + API keys + KV rate-limit.
+- **B** — Ports 13 routers — contacts, companies, pipelines, stages,
+  deals + line items, products, activities, notes, tasks,
+  custom_fields, relationships, timeline, dashboard, workspaces.
+  Cursor pagination, soft-delete with restore, FTS5 search,
+  workspace isolation enforced in every WHERE.
+- **C** — Files in R2 (upload, download, list, delete); workspace
+  export (JSON dump with redacted webhook secrets); ingest (JSON +
+  CSV bulk upsert for contact/company/deal with per-row
+  diagnostics).
+- **D** — Webhooks with HMAC-SHA256 signatures + a delivery
+  pipeline that flips between in-process (ctx.waitUntil) and
+  durable (Cloudflare Queues) modes on a single binding toggle;
+  memory adapters for DocDeploy / Supermemory / GBrain (auto-enable
+  when their secret is present); OAuth 2.1 + PKCE provider with
+  dynamic client registration + refresh-token rotation.
+- **E** — Outbound email via Resend (HTTPS, no IMAP/SMTP); calendar
+  feeds via iCal-over-HTTPS with ETag-aware sync + attendee match
+  to contacts; self-contained RFC-5545 parser.
+- **F** — MCP server at `/mcp` (streamable HTTP, JSON-RPC, 21 tools
+  dispatching through the same Hono app); single-use `/welcome`
+  bootstrap flow that creates user + workspace + owner API key.
+- **G** — CI deploy via `cloudflare/wrangler-action` (gated on
+  typecheck + lint + tests); D1 migrations applied on deploy;
+  seed script (`scripts/seed.mjs`) that talks to either a fresh
+  `/welcome` or an existing `/auth/login` and provisions a starter
+  workspace; README/CHANGELOG/agent.json/llms.txt refreshed for the
+  Cloudflare target.
+
+### Trade-offs taken
+
+- Decimal money fields stored as `numeric` (TEXT) since D1 has no
+  DECIMAL — wire format matches legacy.
+- Idempotency moved from a Postgres table to the KV IDEMPOTENCY
+  namespace; FTS5 replaces pg_trgm; bcrypt replaced by
+  PBKDF2-SHA256 @ 600k iters (OWASP 2023).
+- AI + Vectorize bindings declared as comments in `wrangler.toml`
+  pending feature use; uncomment + rerun `npm run cf:bootstrap`
+  to enable.
+
+### Pre-Cloudflare history
+
+(retained below as the legacy v0.x changelog; semantics still apply
+to the FastAPI codebase under `legacy/`)
+
+---
+
+## [Unreleased — legacy] (pre-Cloudflare)
 
 ### Added (phase A.1 — scaffold)
 
