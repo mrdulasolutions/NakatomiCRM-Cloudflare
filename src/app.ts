@@ -8,7 +8,9 @@ import type { AppVars } from './middleware/auth'
 import { authRouter } from './routes/auth'
 import { companiesRouter } from './routes/companies'
 import { contactsRouter } from './routes/contacts'
+import { dealsRouter } from './routes/deals'
 import { pipelinesRouter } from './routes/pipelines'
+import { productsRouter } from './routes/products'
 import { workspacesRouter } from './routes/workspaces'
 
 export type AppEnv = { Bindings: Env; Variables: AppVars }
@@ -32,6 +34,8 @@ export function makeApp(): Hono<AppEnv> {
   app.route('/v1/contacts', contactsRouter)
   app.route('/v1/companies', companiesRouter)
   app.route('/v1/pipelines', pipelinesRouter)
+  app.route('/v1/products', productsRouter)
+  app.route('/v1/deals', dealsRouter)
 
   app.get('/', (c) =>
     c.json({
