@@ -15,6 +15,7 @@ import { dealsRouter } from './routes/deals'
 import { exportsRouter } from './routes/exports'
 import { filesRouter } from './routes/files'
 import { ingestRouter } from './routes/ingest'
+import { memoryRouter } from './routes/memory'
 import { notesRouter } from './routes/notes'
 import { pipelinesRouter } from './routes/pipelines'
 import { productsRouter } from './routes/products'
@@ -58,6 +59,7 @@ export function makeApp(): Hono<AppEnv> {
   app.route('/v1/ingest', ingestRouter)
   app.route('/v1/exports', exportsRouter)
   app.route('/v1/webhooks', webhooksRouter)
+  app.route('/v1/memory', memoryRouter)
 
   app.get('/', (c) =>
     c.json({
