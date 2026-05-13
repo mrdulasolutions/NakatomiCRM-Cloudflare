@@ -1,0 +1,39 @@
+{
+  "name": "nakatomi-crm",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Headless, agent-native CRM on Cloudflare Workers (Hono + D1 + Drizzle + R2 + KV + Queues + Vectorize + Workers AI)",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "typecheck": "tsc --noEmit",
+    "lint": "biome check src test",
+    "format": "biome format --write src test",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate:local": "wrangler d1 migrations apply nakatomi-db --local",
+    "db:migrate:remote": "wrangler d1 migrations apply nakatomi-db --remote",
+    "cf:bootstrap": "node scripts/cf-bootstrap.mjs"
+  },
+  "dependencies": {
+    "hono": "^4.6.10",
+    "drizzle-orm": "^0.36.4",
+    "jose": "^5.9.6",
+    "zod": "^3.23.8",
+    "nanoid": "^5.0.9"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^1.9.4",
+    "@cloudflare/vitest-pool-workers": "^0.5.32",
+    "@cloudflare/workers-types": "^4.20241112.0",
+    "drizzle-kit": "^0.28.1",
+    "typescript": "^5.6.3",
+    "vitest": "~2.1.5",
+    "wrangler": "^3.86.0"
+  }
+}

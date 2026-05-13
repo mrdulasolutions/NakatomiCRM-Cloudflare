@@ -1,0 +1,84 @@
+name = "nakatomi-crm"
+main = "src/index.ts"
+compatibility_date = "2025-09-23"
+compatibility_flags = ["nodejs_compat"]
+
+# Static assets — logos, welcome page, agent.json
+[assets]
+directory = "./public"
+binding = "ASSETS"
+
+# Observability — Workers logs/metrics
+[observability]
+enabled = true
+
+# Cron Triggers
+#   */15 — webhook redelivery sweep + queue DLQ inspection
+#   0 *  — forecast snapshot rollups
+#   0 0  — idempotency key + session GC, soft-delete purge
+[triggers]
+crons = ["*/15 * * * *", "0 * * * *", "0 0 * * *"]
+
+# ---------- D1 (primary SQL) ----------
+[[d1_databases]]
+binding = "DB"
+database_name = "nakatomi-db"
+database_id = "PLACEHOLDER_RUN_npm_run_cf:bootstrap"
+migrations_dir = "migrations"
+
+# ---------- KV ----------
+[[kv_namespaces]]
+binding = "SESSIONS"
+id = "PLACEHOLDER_KV_SESSIONS"
+
+[[kv_namespaces]]
+binding = "RATE_LIMIT"
+id = "PLACEHOLDER_KV_RATE_LIMIT"
+
+[[kv_namespaces]]
+binding = "IDEMPOTENCY"
+id = "PLACEHOLDER_KV_IDEMPOTENCY"
+
+# ---------- R2 ----------
+[[r2_buckets]]
+binding = "FILES"
+bucket_name = "nakatomi-files"
+
+# ---------- Queues ----------
+[[queues.producers]]
+binding = "WEBHOOK_QUEUE"
+queue = "nakatomi-webhooks"
+
+[[queues.producers]]
+binding = "INGEST_QUEUE"
+queue = "nakatomi-ingest"
+
+[[queues.consumers]]
+queue = "nakatomi-webhooks"
+max_batch_size = 25
+max_batch_timeout = 5
+max_retries = 5
+dead_letter_queue = "nakatomi-webhooks-dlq"
+
+[[queues.consumers]]
+queue = "nakatomi-ingest"
+max_batch_size = 10
+max_batch_timeout = 10
+max_retries = 3
+dead_letter_queue = "nakatomi-ingest-dlq"
+
+# ---------- Vectorize (semantic memory, dedup, deal-signal search) ----------
+[[vectorize]]
+binding = "VECTORS"
+index_name = "nakatomi-memory"
+
+# ---------- Workers AI (embeddings, deal scoring, summarization) ----------
+[ai]
+binding = "AI"
+
+# ---------- Environments ----------
+[env.staging]
+name = "nakatomi-crm-staging"
+
+[env.production]
+name = "nakatomi-crm"

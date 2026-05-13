@@ -3,7 +3,36 @@
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning: [SemVer](https://semver.org/).
 
-## [Unreleased]
+## [Unreleased] — Cloudflare rewrite
+
+### Added (phase A.1 — scaffold)
+
+- Workers project structure: `package.json`, `wrangler.toml` (D1, R2, KV
+  ×3, Queues + DLQs, Vectorize, Workers AI, Cron triggers, static
+  assets), `tsconfig.json`, `biome.json`.
+- Hono app skeleton with `/`, `/healthz`, `/readyz` (D1 round-trip),
+  CORS for `/v1/*`, structured 404/500 JSON.
+- Queue + Cron entrypoints stubbed for phase D.
+- Vitest harness using `@cloudflare/vitest-pool-workers` with a smoke
+  test against `SELF`.
+- `scripts/cf-bootstrap.mjs` — idempotent first-run that creates D1,
+  KV, R2, Queues, Vectorize index and rewrites `wrangler.toml`
+  placeholder IDs.
+- GitHub Actions CI: typecheck + lint + Vitest on Node 20.
+
+### Changed
+
+- Python source moved to [`legacy/`](./legacy) as read-only reference.
+  `app/`, `alembic/`, `tests/`, `scripts/`, `pyproject.toml`,
+  `requirements.txt`, `Dockerfile`, `docker-compose.yml`,
+  `railway.toml`, `install.sh`, `docs/`, `AgentLab.md`, `ROADMAP.md`,
+  `llms.txt`, `.env.example` all relocated. Diffs intentionally large
+  because this is the start of a rewrite, not an edit.
+- README rewritten for the Cloudflare target and phase tracker.
+
+### Pre-Cloudflare history
+
+## [Unreleased] (legacy)
 
 ### Added
 

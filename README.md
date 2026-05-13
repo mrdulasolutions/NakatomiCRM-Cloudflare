@@ -1,157 +1,100 @@
-# Nakatomi
+# Nakatomi CRM — Cloudflare edition
 
-> A headless CRM built for AI agents. No UI to click. No email to sync. Just a
-> clean structured API and an MCP server so Claude, ChatGPT, Cursor, and
-> Perplexity can work with your CRM as a first-class tool.
+> A headless CRM built for AI agents, rebuilt on Cloudflare Workers. No UI to
+> click. No email to sync. Just a clean structured API and an MCP server so
+> Claude, ChatGPT, Cursor, and Perplexity can work with your CRM as a
+> first-class tool — running at the edge, globally, with D1, R2, KV, Queues,
+> Vectorize, and Workers AI underneath.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
-[![Python 3.12](https://img.shields.io/badge/python-3.12-blue.svg)](https://www.python.org/)
-[![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/deploy/nakatomicrm)
+[![Workers](https://img.shields.io/badge/runtime-cloudflare%20workers-f38020.svg)](https://workers.cloudflare.com/)
+[![Status](https://img.shields.io/badge/status-rebuilding-orange.svg)](#status)
 
-```mermaid
-%%{init: {"look": "handDrawn", "theme": "dark"}}%%
-flowchart LR
-    Agents[Claude / ChatGPT<br/>Cursor / Perplexity] --> Nakatomi
-    CLI[curl / scripts] --> Nakatomi
-    subgraph Nakatomi[Nakatomi]
-        direction TB
-        REST[REST API]
-        MCP[MCP server]
-        Worker[Webhook worker]
-    end
-    Nakatomi --> PG[(Postgres)]
-    Nakatomi --> Storage[(Files)]
-    Nakatomi -.->|optional| Memory[Memory<br/>connectors]
-```
+## Status
 
-- **REST API** — every primitive (contacts, companies, deals, pipelines, activities, notes, tasks, files, relationships, timeline, webhooks) is a normal HTTP endpoint
-- **MCP server** — agents speak to the CRM natively at `/mcp` (streamable HTTP)
-- **Multi-tenant** — workspaces, users, per-workspace API keys
-- **Memory-connector friendly** — plug in DocDeploy, Supermemory, GBrain, etc. for semantic recall; Nakatomi stays the structured source of truth
-- **Agent ergonomics** — bulk upsert, cursor pagination, idempotency keys, soft delete, relationship graph, self-describing `/schema` manifest, A2A agent card, `llms.txt`
+This repository is a Cloudflare-native rewrite of
+[NakatomiCRM](https://github.com/mrdulasolutions/NakatomiCRM) (FastAPI +
+Postgres). The original Python code is preserved under [`legacy/`](./legacy)
+as a read-only reference; new code lives at the root in TypeScript.
 
-## Quickstart (Docker)
+| Phase | Scope | State |
+| --- | --- | --- |
+| A.1 | Workers scaffold (Hono, wrangler, Vitest, env types) | in progress |
+| A.2 | Drizzle schema port + D1 migrations | pending |
+| A.3 | Auth (JWT + API keys + KV rate-limit) | pending |
+| B   | Core CRUD routers (contacts, companies, deals, …) | pending |
+| C   | Files (R2), exports, ingest | pending |
+| D   | Webhooks via Queues, memory adapters, OAuth | pending |
+| E   | Email + calendar (provider APIs, not raw TCP) | pending |
+| F   | MCP server (streamable HTTP), welcome flow | pending |
+| G   | CI → wrangler deploy, seed script, docs | pending |
+
+## Why Cloudflare
+
+| Concern | Old (Python on Railway) | New (Cloudflare) |
+| --- | --- | --- |
+| Compute | Single container | Workers, globally distributed |
+| SQL | Postgres | D1 (SQLite at the edge) |
+| Files | Local disk or S3 | R2 (zero-egress) |
+| Sessions / cache | Postgres rows | KV |
+| Webhook delivery | In-process worker | Queues + DLQ + Cron sweeper |
+| Async ingest | Background task | Queues |
+| Semantic memory | External adapter only | Vectorize + Workers AI |
+| AI features (scoring, summaries) | External call | Workers AI |
+| Scheduled work | APScheduler | Cron Triggers |
+| Cold start | Container boot (~seconds) | ~0 ms |
+
+## Cloudflare bindings
+
+Declared in [`wrangler.toml`](./wrangler.toml):
+
+| Binding | Resource | Used for |
+| --- | --- | --- |
+| `DB` | D1 | Primary SQL |
+| `FILES` | R2 | Attachments, exports |
+| `SESSIONS` | KV | JWT denylist, refresh state |
+| `RATE_LIMIT` | KV | Per-key request buckets |
+| `IDEMPOTENCY` | KV | `Idempotency-Key` dedup |
+| `WEBHOOK_QUEUE` | Queue | Durable webhook delivery |
+| `INGEST_QUEUE` | Queue | Async importer/ingest jobs |
+| `VECTORS` | Vectorize | Semantic memory, dedup |
+| `AI` | Workers AI | Embeddings, scoring, summaries |
+| `ASSETS` | Static assets | Logos, welcome page |
+
+## Quickstart (local)
 
 ```bash
-git clone https://github.com/mrdulasolutions/NakatomiCRM.git
-cd nakatomi
-cp .env.example .env            # fill SECRET_KEY
-docker compose up -d            # Postgres + app on :8000
-./install.sh --seed you@example.com
-# → prints your API key. save it.
-
-curl http://localhost:8000/health
-```
-
-## Quickstart (Python)
-
-```bash
-cp .env.example .env
-docker run -d --name nk-pg -e POSTGRES_PASSWORD=nakatomi -e POSTGRES_USER=nakatomi \
-  -e POSTGRES_DB=nakatomi -p 5432:5432 postgres:16
-pip install -r requirements.txt
-alembic upgrade head
-python -m scripts.seed \
-  --email you@example.com --password hunter22secret \
-  --workspace-name "My Workspace" --workspace-slug mine
-uvicorn app.main:app --reload
+npm install
+cp .dev.vars.example .dev.vars       # then set JWT_SECRET
+npm run cf:bootstrap                 # creates D1 + KV + R2 + queues + vectorize index
+npm run db:migrate:local             # applies migrations to local D1
+npm run dev                          # http://localhost:8787
 ```
 
 ## Deploy
 
-### Railway (recommended)
-
-[![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/deploy/nakatomicrm)
-
-Click the button above for a one-click deploy. Railway reads
-[`railway.toml`](./railway.toml) and the Dockerfile, provisions Postgres,
-runs migrations, and boots the app — about 60–90s end to end. You'll
-be prompted for:
-
-- `SECRET_KEY` — paste the output of `openssl rand -hex 32`
-- (optional) S3 credentials if you want `STORAGE_BACKEND=s3`
-- (optional) memory-connector keys (`DOCDEPLOY_API_KEY`, `SUPERMEMORY_API_KEY`, …)
-
-Everything else has a sensible default. After the deploy promotes,
-`/health` returns `{"ok": true}` and `/mcp/` speaks streamable HTTP.
-Open the project URL in a browser — the **welcome page** lets you
-create your workspace and an API key in a single form, with the key
-shown exactly once. After that, `/` serves the JSON discovery doc and
-`/bootstrap` is closed.
-
-Full template configuration — every variable, the dashboard publish
-flow, post-deploy seed commands — lives in
-[docs/RAILWAY_TEMPLATE.md](./docs/RAILWAY_TEMPLATE.md).
-
-> **Manual deploy fallback** — if you'd rather not use the template:
-> `railway init` → push the repo → add a Postgres plugin → set
-> `SECRET_KEY` → mount a volume at `/app/data` → deploy. The
-> Dockerfile runs `alembic upgrade head && uvicorn` automatically.
-
-### Other clouds
-
-Any platform that runs a Dockerfile with a Postgres side-car works: Fly.io, Render, Vercel Fluid, a bare VPS, Kubernetes.
-
-## Authentication
-
-Two flavors:
-
-- **User JWT** (humans / scripts): `POST /auth/signup` or `POST /auth/login` → bearer token. Send `Authorization: Bearer <jwt>` and `X-Workspace: <slug-or-id>` on every request.
-- **API key** (agents): `POST /workspace/api-keys` (as an authed user). Send `Authorization: Bearer nk_<key>` — workspace is inferred from the key.
-
-API keys are the recommended path for agents. They're cleaner for MCP clients (which typically let you set a static header in the connector config).
-
-## MCP
-
-- Endpoint: `https://<your-host>/mcp`
-- Transport: streamable HTTP
-- Auth: `Authorization: Bearer nk_<key>` in your MCP client config
-- Tools: `search_contacts`, `get_contact`, `create_contact`, `update_contact`, `search_companies`, `create_company`, `list_pipelines`, `create_deal`, `move_deal_stage`, `log_activity`, `add_note`, `create_task`, `list_tasks`, `relate`, `timeline`, `memory_list_connectors`, `memory_recall`, `memory_link`, `memory_trace`, `ingest`, `describe_schema`
-
-See [docs/MCP.md](./docs/MCP.md) for Claude Desktop, Cursor, and Custom Connector setup recipes.
-
-## Agent interop
-
-- **[`llms.txt`](./llms.txt)** — a machine-readable pointer file for any LLM crawler: routes, headers, auth model.
-- **[`.well-known/agent.json`](./public/.well-known/agent.json)** — A2A (Agent-to-Agent) card describing capabilities for agent discovery frameworks.
-- **[`docs/SKILLS.md`](./docs/SKILLS.md)** — how to install Nakatomi as a Claude Code / Claude Agent SDK skill.
-- **[`.claude/skills/`](./.claude/skills/)** — two ready-to-install skills: `nakatomi-crm` (usage patterns) and `nakatomi-dashboard` (launches the local audit UI).
-
-## Memory interop
-
-Nakatomi does not implement semantic memory on purpose. Agents already have good
-memory systems. Instead, Nakatomi ships a pluggable `MemoryConnector` interface and
-adapters for the major agentic memory products (DocDeploy, Supermemory, …). Config
-it via env:
-
-```
-MEMORY_CONNECTORS=docdeploy,supermemory
-DOCDEPLOY_API_KEY=...
-SUPERMEMORY_API_KEY=...
+```bash
+wrangler login
+npm run cf:bootstrap                 # idempotent; safe to re-run
+npm run db:migrate:remote
+wrangler deploy
 ```
 
-Every CRM mutation can be mirrored to those systems, and every memory write can
-traceback to (and optionally trigger) a CRM change. See
-[docs/MEMORY.md](./docs/MEMORY.md).
+The bootstrap script writes generated resource IDs back into
+`wrangler.toml`. Commit the result.
 
-## Dashboard
+## API surface (target)
 
-Optional, off by default, local-only. Set `DASHBOARD_ENABLED=true` and visit
-`http://localhost:8000/dashboard`. Or install the `nakatomi-dashboard` Claude skill
-and just say **"nakatomi dashboard"** — the skill boots the stack and opens Chrome.
+Same as the legacy FastAPI app — full parity is the bar:
 
-## Project files
+contacts · companies · deals · pipelines · products · activities · notes ·
+tasks · files · custom_fields · relationships · timeline · dashboard ·
+exports · ingest · webhooks · memory · oauth · email · calendar · forecast ·
+welcome · workspaces · auth · `/mcp` · `/schema` · `/.well-known/agent.json`
+· `llms.txt`
 
-- [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) — visual tour of how the pieces wire together (component layout, webhook flow, ingest, export/import, memory cross-linking)
-- [`docs/DEPLOYMENT_LESSONS.md`](./docs/DEPLOYMENT_LESSONS.md) — the eleven gotchas from our first Railway deploy; read before deploying to a new cloud target
-- [`AgentLab.md`](./AgentLab.md) — recipes for solo agents, multi-agent swarms, harness setups, connector chains, and anti-patterns. Start here if you're wiring agents at Nakatomi.
-- [Wiki](https://github.com/mrdulasolutions/NakatomiCRM/wiki) — deep dives on every subsystem (auth, webhooks, memory, ingest, deployment, troubleshooting)
-- [`ROADMAP.md`](./ROADMAP.md) — what's shipped, what's in flight, what's next
-- [`ETHOS.md`](./ETHOS.md) — values the project is guided by
-- [`SECURITY.md`](./SECURITY.md) — responsible disclosure
-- [`CONTRIBUTORS.md`](./CONTRIBUTORS.md), [`AUTHORS.md`](./AUTHORS.md)
-- [`CODE_OF_CONDUCT.md`](./CODE_OF_CONDUCT.md)
-- [`CHANGELOG.md`](./CHANGELOG.md)
+See [`legacy/app/routers`](./legacy/app/routers) for current behaviors and
+[`legacy/docs`](./legacy/docs) for architecture notes carried forward.
 
 ## License
 

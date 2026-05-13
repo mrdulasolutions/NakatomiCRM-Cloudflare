@@ -1,18 +1,35 @@
-__pycache__/
-*.pyc
-*.pyo
-.env
-.env.local
-.venv/
-venv/
-data/
-*.db
-*.sqlite
-.pytest_cache/
-.mypy_cache/
-.ruff_cache/
-.DS_Store
-*.egg-info/
+# node
+node_modules/
 dist/
-build/
+*.log
+.npmrc
+
+# wrangler / cloudflare
+.wrangler/
+.dev.vars
+.wrangler-state/
+
+# editor
+.DS_Store
+.idea/
+.vscode/
+
+# claude
 .claude/scheduled_tasks.lock
+.claude/settings.local.json
+
+# drizzle scratch
+drizzle/meta/
+
+# legacy python tooling (snapshot lives in legacy/ for reference only)
+legacy/.venv/
+legacy/venv/
+legacy/.ruff_cache/
+legacy/.mypy_cache/
+legacy/.pytest_cache/
+legacy/**/__pycache__/
+legacy/**/*.pyc
+legacy/**/*.pyo
+legacy/data/
+legacy/*.db
+legacy/*.sqlite
