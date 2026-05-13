@@ -16,6 +16,7 @@ import { exportsRouter } from './routes/exports'
 import { filesRouter } from './routes/files'
 import { ingestRouter } from './routes/ingest'
 import { memoryRouter } from './routes/memory'
+import { oauthRouter } from './routes/oauth'
 import { notesRouter } from './routes/notes'
 import { pipelinesRouter } from './routes/pipelines'
 import { productsRouter } from './routes/products'
@@ -42,6 +43,8 @@ export function makeApp(): Hono<AppEnv> {
   app.use('/auth/*', cors(CORS_OPTS))
 
   app.route('/auth', authRouter)
+  // OAuth lives at the root (mounts /.well-known/* and /oauth/*).
+  app.route('/', oauthRouter)
   app.route('/v1/workspaces', workspacesRouter)
   app.route('/v1/contacts', contactsRouter)
   app.route('/v1/companies', companiesRouter)

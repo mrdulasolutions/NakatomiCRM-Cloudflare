@@ -33,3 +33,14 @@ export async function sha256Hex(input: string): Promise<string> {
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(input))
   return hexEncode(new Uint8Array(buf))
 }
+
+/** Base64url encoding (PKCE-compatible): `+` → `-`, `/` → `_`, no padding. */
+export function b64urlEncode(buf: Uint8Array): string {
+  return b64encode(buf).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+}
+
+/** PKCE S256: base64url(sha256(verifier)). */
+export async function sha256B64Url(input: string): Promise<string> {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(input))
+  return b64urlEncode(new Uint8Array(buf))
+}
