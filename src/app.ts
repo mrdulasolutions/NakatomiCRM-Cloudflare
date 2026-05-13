@@ -9,11 +9,15 @@ import { activitiesRouter } from './routes/activities'
 import { authRouter } from './routes/auth'
 import { companiesRouter } from './routes/companies'
 import { contactsRouter } from './routes/contacts'
+import { customFieldsRouter } from './routes/custom-fields'
+import { dashboardRouter } from './routes/dashboard'
 import { dealsRouter } from './routes/deals'
 import { notesRouter } from './routes/notes'
 import { pipelinesRouter } from './routes/pipelines'
 import { productsRouter } from './routes/products'
+import { relationshipsRouter } from './routes/relationships'
 import { tasksRouter } from './routes/tasks'
+import { timelineRouter } from './routes/timeline'
 import { workspacesRouter } from './routes/workspaces'
 
 export type AppEnv = { Bindings: Env; Variables: AppVars }
@@ -42,6 +46,10 @@ export function makeApp(): Hono<AppEnv> {
   app.route('/v1/activities', activitiesRouter)
   app.route('/v1/notes', notesRouter)
   app.route('/v1/tasks', tasksRouter)
+  app.route('/v1/custom-fields', customFieldsRouter)
+  app.route('/v1/relationships', relationshipsRouter)
+  app.route('/v1/timeline', timelineRouter)
+  app.route('/v1/dashboard', dashboardRouter)
 
   app.get('/', (c) =>
     c.json({
