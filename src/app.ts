@@ -12,7 +12,9 @@ import { contactsRouter } from './routes/contacts'
 import { customFieldsRouter } from './routes/custom-fields'
 import { dashboardRouter } from './routes/dashboard'
 import { dealsRouter } from './routes/deals'
+import { exportsRouter } from './routes/exports'
 import { filesRouter } from './routes/files'
+import { ingestRouter } from './routes/ingest'
 import { notesRouter } from './routes/notes'
 import { pipelinesRouter } from './routes/pipelines'
 import { productsRouter } from './routes/products'
@@ -52,6 +54,8 @@ export function makeApp(): Hono<AppEnv> {
   app.route('/v1/timeline', timelineRouter)
   app.route('/v1/dashboard', dashboardRouter)
   app.route('/v1/files', filesRouter)
+  app.route('/v1/ingest', ingestRouter)
+  app.route('/v1/exports', exportsRouter)
 
   app.get('/', (c) =>
     c.json({
