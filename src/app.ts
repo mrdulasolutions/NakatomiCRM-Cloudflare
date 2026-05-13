@@ -26,7 +26,9 @@ import { relationshipsRouter } from './routes/relationships'
 import { tasksRouter } from './routes/tasks'
 import { timelineRouter } from './routes/timeline'
 import { webhooksRouter } from './routes/webhooks'
+import { welcomeRouter } from './routes/welcome'
 import { workspacesRouter } from './routes/workspaces'
+import { makeMcpEndpoint } from './mcp/server'
 
 export type AppEnv = { Bindings: Env; Variables: AppVars }
 
@@ -67,6 +69,13 @@ export function makeApp(): Hono<AppEnv> {
   app.route('/v1/memory', memoryRouter)
   app.route('/v1/email', emailRouter)
   app.route('/v1/calendar', calendarRouter)
+  app.route('/', welcomeRouter)
+
+  // MCP server — streamable HTTP at /mcp. Pass `app` so tools can
+  // dispatch internally through every middleware on its way (auth,
+  // CORS, audit, webhook fanout).
+  const mcp = makeMcpEndpoint(app)
+  app.all('/mcp', async (c) => mcp(c.req.raw, c.env, c.executionCtx))
 
   app.get('/', (c) =>
     c.json({
