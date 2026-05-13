@@ -237,7 +237,7 @@ dealsRouter.post('/', async (c) => {
     .returning()
     .get()
 
-  await recordEvent(db, c.var.principal, {
+  await recordEvent(c, {
     eventType: 'deal.created',
     entityType: 'deal',
     entityId: created.id,
@@ -292,7 +292,7 @@ dealsRouter.patch('/:id', async (c) => {
     .returning()
     .get()
 
-  await recordEvent(db, c.var.principal, {
+  await recordEvent(c, {
     eventType: 'deal.updated',
     entityType: 'deal',
     entityId: id,
@@ -315,7 +315,7 @@ dealsRouter.delete('/:id', async (c) => {
   if (!existing || existing.deletedAt) throw new HTTPError(404, 'deal not found')
 
   await db.update(deals).set({ deletedAt: new Date() }).where(eq(deals.id, id)).run()
-  await recordEvent(db, c.var.principal, {
+  await recordEvent(c, {
     eventType: 'deal.deleted',
     entityType: 'deal',
     entityId: id,
@@ -359,7 +359,7 @@ dealsRouter.post('/:id/move', async (c) => {
     .returning()
     .get()
 
-  await recordEvent(db, c.var.principal, {
+  await recordEvent(c, {
     eventType: 'deal.moved',
     entityType: 'deal',
     entityId: id,
@@ -453,7 +453,7 @@ dealsRouter.post('/:dealId/line-items', async (c) => {
     .returning()
     .get()
 
-  await recordEvent(db, c.var.principal, {
+  await recordEvent(c, {
     eventType: 'deal.line_item.added',
     entityType: 'deal',
     entityId: dealId,
@@ -485,7 +485,7 @@ dealsRouter.delete('/:dealId/line-items/:id', async (c) => {
 
   await db.delete(dealLineItems).where(eq(dealLineItems.id, id)).run()
 
-  await recordEvent(db, c.var.principal, {
+  await recordEvent(c, {
     eventType: 'deal.line_item.removed',
     entityType: 'deal',
     entityId: dealId,

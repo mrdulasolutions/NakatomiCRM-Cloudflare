@@ -107,7 +107,7 @@ notesRouter.post('/', async (c) => {
     .returning()
     .get()
 
-  await recordEvent(db, c.var.principal, {
+  await recordEvent(c, {
     eventType: 'note.created',
     entityType: body.entity_type,
     entityId: body.entity_id,

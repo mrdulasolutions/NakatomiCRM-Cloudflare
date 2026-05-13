@@ -21,6 +21,7 @@ import { productsRouter } from './routes/products'
 import { relationshipsRouter } from './routes/relationships'
 import { tasksRouter } from './routes/tasks'
 import { timelineRouter } from './routes/timeline'
+import { webhooksRouter } from './routes/webhooks'
 import { workspacesRouter } from './routes/workspaces'
 
 export type AppEnv = { Bindings: Env; Variables: AppVars }
@@ -56,6 +57,7 @@ export function makeApp(): Hono<AppEnv> {
   app.route('/v1/files', filesRouter)
   app.route('/v1/ingest', ingestRouter)
   app.route('/v1/exports', exportsRouter)
+  app.route('/v1/webhooks', webhooksRouter)
 
   app.get('/', (c) =>
     c.json({

@@ -132,7 +132,7 @@ tasksRouter.post('/', async (c) => {
     .get()
 
   if (created.entityType && created.entityId) {
-    await recordEvent(db, c.var.principal, {
+    await recordEvent(c, {
       eventType: 'task.created',
       entityType: created.entityType,
       entityId: created.entityId,
@@ -195,7 +195,7 @@ tasksRouter.patch('/:id', async (c) => {
     .get()
 
   if (body.status && updated?.entityType && updated.entityId) {
-    await recordEvent(db, c.var.principal, {
+    await recordEvent(c, {
       eventType: `task.${body.status}`,
       entityType: updated.entityType,
       entityId: updated.entityId,
@@ -243,7 +243,7 @@ tasksRouter.post('/:id/complete', async (c) => {
     .get()
 
   if (updated?.entityType && updated.entityId) {
-    await recordEvent(db, c.var.principal, {
+    await recordEvent(c, {
       eventType: 'task.done',
       entityType: updated.entityType,
       entityId: updated.entityId,

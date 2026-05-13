@@ -127,7 +127,7 @@ companiesRouter.post('/', async (c) => {
     .returning()
     .get()
 
-  await recordEvent(db, c.var.principal, {
+  await recordEvent(c, {
     eventType: 'company.created',
     entityType: 'company',
     entityId: created.id,
@@ -179,7 +179,7 @@ companiesRouter.patch('/:id', async (c) => {
     .returning()
     .get()
 
-  await recordEvent(db, c.var.principal, {
+  await recordEvent(c, {
     eventType: 'company.updated',
     entityType: 'company',
     entityId: id,
@@ -202,7 +202,7 @@ companiesRouter.delete('/:id', async (c) => {
   if (!existing || existing.deletedAt) throw new HTTPError(404, 'company not found')
 
   await db.update(companies).set({ deletedAt: new Date() }).where(eq(companies.id, id)).run()
-  await recordEvent(db, c.var.principal, {
+  await recordEvent(c, {
     eventType: 'company.deleted',
     entityType: 'company',
     entityId: id,
@@ -230,7 +230,7 @@ companiesRouter.post('/:id/restore', async (c) => {
     .where(eq(companies.id, id))
     .returning()
     .get()
-  await recordEvent(db, c.var.principal, {
+  await recordEvent(c, {
     eventType: 'company.restored',
     entityType: 'company',
     entityId: id,

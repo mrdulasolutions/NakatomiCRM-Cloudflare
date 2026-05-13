@@ -141,7 +141,7 @@ pipelinesRouter.post('/', requireRole('owner', 'admin'), async (c) => {
       .all()
   }
 
-  await recordEvent(db, c.var.principal, {
+  await recordEvent(c, {
     eventType: 'pipeline.created',
     entityType: 'deal', // pipelines hang off the deal entity in the timeline
     entityId: created.id,

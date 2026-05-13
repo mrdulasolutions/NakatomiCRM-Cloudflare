@@ -137,7 +137,7 @@ filesRouter.post('/', async (c) => {
     .get()
 
   if (created.entityType && created.entityId) {
-    await recordEvent(db, c.var.principal, {
+    await recordEvent(c, {
       eventType: 'file.uploaded',
       entityType: created.entityType,
       entityId: created.entityId,

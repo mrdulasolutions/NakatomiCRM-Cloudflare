@@ -129,7 +129,7 @@ contactsRouter.post('/', async (c) => {
     .returning()
     .get()
 
-  await recordEvent(db, c.var.principal, {
+  await recordEvent(c, {
     eventType: 'contact.created',
     entityType: 'contact',
     entityId: created.id,
@@ -183,7 +183,7 @@ contactsRouter.patch('/:id', async (c) => {
     .get()
   if (!updated) throw new HTTPError(500, 'contact vanished after update')
 
-  await recordEvent(db, c.var.principal, {
+  await recordEvent(c, {
     eventType: 'contact.updated',
     entityType: 'contact',
     entityId: id,
@@ -207,7 +207,7 @@ contactsRouter.delete('/:id', async (c) => {
   if (!existing || existing.deletedAt) throw new HTTPError(404, 'contact not found')
 
   await db.update(contacts).set({ deletedAt: new Date() }).where(eq(contacts.id, id)).run()
-  await recordEvent(db, c.var.principal, {
+  await recordEvent(c, {
     eventType: 'contact.deleted',
     entityType: 'contact',
     entityId: id,
@@ -236,7 +236,7 @@ contactsRouter.post('/:id/restore', async (c) => {
     .where(eq(contacts.id, id))
     .returning()
     .get()
-  await recordEvent(db, c.var.principal, {
+  await recordEvent(c, {
     eventType: 'contact.restored',
     entityType: 'contact',
     entityId: id,

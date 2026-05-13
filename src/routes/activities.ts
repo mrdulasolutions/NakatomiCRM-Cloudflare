@@ -120,7 +120,7 @@ activitiesRouter.post('/', async (c) => {
 
   // Timeline event attached to the *referenced* entity, not to the activity itself
   if (created.entityType && created.entityId) {
-    await recordEvent(db, c.var.principal, {
+    await recordEvent(c, {
       eventType: `activity.${body.kind}`,
       entityType: created.entityType,
       entityId: created.entityId,

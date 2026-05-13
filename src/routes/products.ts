@@ -126,7 +126,7 @@ productsRouter.post('/', async (c) => {
     .returning()
     .get()
 
-  await recordEvent(db, c.var.principal, {
+  await recordEvent(c, {
     eventType: 'product.created',
     entityType: 'product',
     entityId: created.id,
@@ -177,7 +177,7 @@ productsRouter.patch('/:id', async (c) => {
     .returning()
     .get()
 
-  await recordEvent(db, c.var.principal, {
+  await recordEvent(c, {
     eventType: 'product.updated',
     entityType: 'product',
     entityId: id,
@@ -200,7 +200,7 @@ productsRouter.delete('/:id', async (c) => {
   if (!existing || existing.deletedAt) throw new HTTPError(404, 'product not found')
 
   await db.update(products).set({ deletedAt: new Date() }).where(eq(products.id, id)).run()
-  await recordEvent(db, c.var.principal, {
+  await recordEvent(c, {
     eventType: 'product.deleted',
     entityType: 'product',
     entityId: id,

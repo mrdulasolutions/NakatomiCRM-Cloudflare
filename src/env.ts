@@ -1,3 +1,5 @@
+import type { WebhookEventJob } from './jobs/webhook-delivery'
+
 export interface Env {
   // D1
   DB: D1Database
@@ -9,8 +11,9 @@ export interface Env {
   FILES: R2Bucket
   // Static assets binding
   ASSETS: Fetcher
-  // Phase D — wired up when queue handlers land
-  WEBHOOK_QUEUE?: Queue<WebhookJob>
+  // Queues — webhook fanout enqueues here when configured; otherwise
+  // audit.ts falls back to ctx.waitUntil + in-process delivery.
+  WEBHOOK_QUEUE?: Queue<WebhookEventJob>
   INGEST_QUEUE?: Queue<IngestJob>
   // Phase F — wired up when memory/AI features land
   VECTORS?: VectorizeIndex
@@ -20,14 +23,6 @@ export interface Env {
   ADMIN_BOOTSTRAP_TOKEN?: string
 }
 
-export interface WebhookJob {
-  kind: 'webhook.delivery'
-  workspaceId: string
-  endpointId: string
-  eventId: string
-  attempt: number
-}
-
 export interface IngestJob {
   kind: 'ingest.run'
   workspaceId: string
@@ -35,4 +30,4 @@ export interface IngestJob {
   payload: Record<string, unknown>
 }
 
-export type QueueJob = WebhookJob | IngestJob
+export type QueueJob = WebhookEventJob | IngestJob
