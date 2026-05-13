@@ -1,7 +1,7 @@
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { logger } from 'hono/logger'
-import type { Env, QueueJob } from './env'
+import type { Env } from './env'
 
 type AppEnv = { Bindings: Env }
 
@@ -48,7 +48,7 @@ export default {
   fetch: app.fetch,
 
   // Queue consumer — fan-out happens in phase D.
-  async queue(batch: MessageBatch<QueueJob>, _env: Env, _ctx: ExecutionContext): Promise<void> {
+  async queue(batch, _env, _ctx) {
     console.log(`queue=${batch.queue} size=${batch.messages.length}`)
     for (const msg of batch.messages) {
       // TODO(phase-d): route by msg.body.kind to webhook/ingest handlers
@@ -57,7 +57,7 @@ export default {
   },
 
   // Cron — sweeps wired up in phase D/G.
-  async scheduled(event: ScheduledEvent, _env: Env, _ctx: ExecutionContext): Promise<void> {
-    console.log(`cron cron=${event.cron} scheduledTime=${event.scheduledTime}`)
+  async scheduled(controller, _env, _ctx) {
+    console.log(`cron cron=${controller.cron} scheduledTime=${controller.scheduledTime}`)
   },
 } satisfies ExportedHandler<Env>

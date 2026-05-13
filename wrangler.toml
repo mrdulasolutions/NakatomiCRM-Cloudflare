@@ -1,6 +1,6 @@
 name = "nakatomi-crm"
 main = "src/index.ts"
-compatibility_date = "2025-09-23"
+compatibility_date = "2024-12-30"
 compatibility_flags = ["nodejs_compat"]
 
 # Static assets — logos, welcome page, agent.json
@@ -12,7 +12,7 @@ binding = "ASSETS"
 [observability]
 enabled = true
 
-# Cron Triggers
+# Cron Triggers — handlers stubbed; wired up in phase D/G.
 #   */15 — webhook redelivery sweep + queue DLQ inspection
 #   0 *  — forecast snapshot rollups
 #   0 0  — idempotency key + session GC, soft-delete purge
@@ -44,39 +44,20 @@ id = "PLACEHOLDER_KV_IDEMPOTENCY"
 binding = "FILES"
 bucket_name = "nakatomi-files"
 
-# ---------- Queues ----------
-[[queues.producers]]
-binding = "WEBHOOK_QUEUE"
-queue = "nakatomi-webhooks"
+# ---------------------------------------------------------------------------
+# Bindings added per-phase (kept here as comments so cf-bootstrap.mjs can
+# uncomment when each phase needs them):
+#
+# Phase D — Queues for durable webhook delivery + async ingest:
+#   [[queues.producers]] binding = "WEBHOOK_QUEUE" queue = "nakatomi-webhooks"
+#   [[queues.producers]] binding = "INGEST_QUEUE"  queue = "nakatomi-ingest"
+#   [[queues.consumers]] queue = "nakatomi-webhooks" max_batch_size = 25 ...
+#
+# Phase F — Vectorize (semantic memory, dedup) + Workers AI (embeddings):
+#   [[vectorize]] binding = "VECTORS" index_name = "nakatomi-memory"
+#   [ai] binding = "AI"
+# ---------------------------------------------------------------------------
 
-[[queues.producers]]
-binding = "INGEST_QUEUE"
-queue = "nakatomi-ingest"
-
-[[queues.consumers]]
-queue = "nakatomi-webhooks"
-max_batch_size = 25
-max_batch_timeout = 5
-max_retries = 5
-dead_letter_queue = "nakatomi-webhooks-dlq"
-
-[[queues.consumers]]
-queue = "nakatomi-ingest"
-max_batch_size = 10
-max_batch_timeout = 10
-max_retries = 3
-dead_letter_queue = "nakatomi-ingest-dlq"
-
-# ---------- Vectorize (semantic memory, dedup, deal-signal search) ----------
-[[vectorize]]
-binding = "VECTORS"
-index_name = "nakatomi-memory"
-
-# ---------- Workers AI (embeddings, deal scoring, summarization) ----------
-[ai]
-binding = "AI"
-
-# ---------- Environments ----------
 [env.staging]
 name = "nakatomi-crm-staging"
 

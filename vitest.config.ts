@@ -6,7 +6,7 @@ export default defineWorkersConfig({
       workers: {
         wrangler: { configPath: './wrangler.toml' },
         miniflare: {
-          compatibilityDate: '2025-09-23',
+          compatibilityDate: '2024-12-30',
           compatibilityFlags: ['nodejs_compat'],
         },
       },

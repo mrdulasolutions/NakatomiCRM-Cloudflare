@@ -71,6 +71,12 @@ npm run db:migrate:local             # applies migrations to local D1
 npm run dev                          # http://localhost:8787
 ```
 
+> **Path note:** `@cloudflare/vitest-pool-workers` + miniflare currently
+> mishandles project paths that contain spaces — `npm test` fails when the
+> repo is checked out to e.g. `~/Claude Repo/…`. CI runs on a clean path so
+> it's unaffected. If you need to run the test suite locally, clone into a
+> space-free directory or `cp -R` to `/tmp/nakatomi-cf` for the test run.
+
 ## Deploy
 
 ```bash

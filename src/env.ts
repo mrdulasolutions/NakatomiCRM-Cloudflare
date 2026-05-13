@@ -7,15 +7,14 @@ export interface Env {
   IDEMPOTENCY: KVNamespace
   // R2
   FILES: R2Bucket
-  // Queues
-  WEBHOOK_QUEUE: Queue<WebhookJob>
-  INGEST_QUEUE: Queue<IngestJob>
-  // Vectorize
-  VECTORS: VectorizeIndex
-  // Workers AI
-  AI: Ai
   // Static assets binding
   ASSETS: Fetcher
+  // Phase D — wired up when queue handlers land
+  WEBHOOK_QUEUE?: Queue<WebhookJob>
+  INGEST_QUEUE?: Queue<IngestJob>
+  // Phase F — wired up when memory/AI features land
+  VECTORS?: VectorizeIndex
+  AI?: Ai
   // Secrets (set via `wrangler secret put`)
   JWT_SECRET: string
   ADMIN_BOOTSTRAP_TOKEN?: string
