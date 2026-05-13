@@ -1,0 +1,13 @@
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile"
+
+[deploy]
+startCommand = "sh -c 'alembic upgrade head && exec python -u -m uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8080} --proxy-headers --forwarded-allow-ips=*'"
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 10
+healthcheckPath = "/health"
+# Generous budget for cold starts — alembic + psycopg handshake + uvicorn boot
+# on a small Railway instance can easily take 60s. The liveness check itself
+# is a single JSON return (<100ms) once the app is up.
+healthcheckTimeout = 300
