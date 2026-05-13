@@ -5,12 +5,15 @@ import { ZodError } from 'zod'
 import type { Env } from './env'
 import { HTTPError } from './lib/errors'
 import type { AppVars } from './middleware/auth'
+import { activitiesRouter } from './routes/activities'
 import { authRouter } from './routes/auth'
 import { companiesRouter } from './routes/companies'
 import { contactsRouter } from './routes/contacts'
 import { dealsRouter } from './routes/deals'
+import { notesRouter } from './routes/notes'
 import { pipelinesRouter } from './routes/pipelines'
 import { productsRouter } from './routes/products'
+import { tasksRouter } from './routes/tasks'
 import { workspacesRouter } from './routes/workspaces'
 
 export type AppEnv = { Bindings: Env; Variables: AppVars }
@@ -36,6 +39,9 @@ export function makeApp(): Hono<AppEnv> {
   app.route('/v1/pipelines', pipelinesRouter)
   app.route('/v1/products', productsRouter)
   app.route('/v1/deals', dealsRouter)
+  app.route('/v1/activities', activitiesRouter)
+  app.route('/v1/notes', notesRouter)
+  app.route('/v1/tasks', tasksRouter)
 
   app.get('/', (c) =>
     c.json({
